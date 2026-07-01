@@ -1,0 +1,6 @@
+# 빌드 산출물(Actions가 매 실행마다 새로 생성) / 파이썬 캐시 / 임시파일
+public/
+report.html
+__pycache__/
+*.pyc
+_*.txt

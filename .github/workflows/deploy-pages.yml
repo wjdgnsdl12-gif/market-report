@@ -1,0 +1,54 @@
+name: Build & Deploy Report
+
+# 주기적으로 리포트를 빌드해 GitHub Pages로 배포한다.
+# cron은 UTC 기준. 아래는 2시간 간격(장중 갱신 목적). 필요에 따라 조정 가능.
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch: {}   # 저장소 Actions 탭에서 수동 즉시 갱신
+
+# GitHub Pages 배포에 필요한 권한.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시 실행 방지(늦게 시작된 것이 우선).
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build report (public/index.html)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python report.py
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
