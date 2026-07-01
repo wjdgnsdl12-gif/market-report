@@ -210,13 +210,25 @@ def gemini_commentary(summary_text, session_title):
 """
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048},
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 4096,
+            # Gemini 2.5 Flash는 기본적으로 '사고(thinking)'에 출력 토큰을 소모해
+            # 답변이 잘릴 수 있다. 이 요약엔 깊은 추론이 불필요하므로 사고를 끈다.
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
     try:
-        r = requests.post(url, json=body, timeout=90)
+        r = requests.post(url, json=body, timeout=120)
         r.raise_for_status()
         j = r.json()
-        return j["candidates"][0]["content"]["parts"][0]["text"].strip()
+        cand = (j.get("candidates") or [{}])[0]
+        parts = cand.get("content", {}).get("parts", [])
+        text = "".join(p.get("text", "") for p in parts).strip()
+        if not text:
+            reason = cand.get("finishReason", "UNKNOWN")
+            return f"(Gemini 코멘트를 받지 못했습니다. 종료 사유: {reason})"
+        return text
     except Exception as e:
         return f"(Gemini 코멘트 생성 실패: {e})"
 
